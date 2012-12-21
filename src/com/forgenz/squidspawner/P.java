@@ -73,17 +73,13 @@ public class P extends JavaPlugin implements Runnable
 		long start = System.currentTimeMillis();
 		
 		int chunkRange = com.forgenz.mobmanager.P.cfg.getInt("SpawnChunkDistance");
-		int numAttempts = cfg.getInt("SquidSpawnAttemptsPerPlayer", 10);
-		
-		getLogger().info("Starting Squid Spawn run");
+		int numAttempts = cfg.getInt("SquidSpawnAttemptsPerPlayer", 5);
 		
 		for (MMWorld mmWorld : mobManager.worlds.values())
 		{
 			// Ignore Nether & The End
 			if (mmWorld.getWorld().getEnvironment() != Environment.NORMAL)
 				continue;
-			
-			getLogger().info("Attempting to spawn Squid in " + mmWorld.getWorld().getName());
 			
 			// Makes sure the squid count is accurate
 			mmWorld.updateNumMobs();
@@ -96,7 +92,6 @@ public class P extends JavaPlugin implements Runnable
 				Iterator<Player> it = mmWorld.getWorld().getPlayers().iterator();
 				while (it.hasNext() && maxSquid > mmWorld.getNumSquid() && System.currentTimeMillis() - start < 10)
 				{
-					int numSuccessful = 0;
 					Player p = it.next();
 					
 					// Populate the list of chunks around the player
@@ -145,17 +140,11 @@ public class P extends JavaPlugin implements Runnable
 						
 						// Check if the spawn location is safe
 						if (loc.getBlock().getType() != Material.WATER && loc.getBlock().getType() != Material.STATIONARY_WATER)
-						{
-							getLogger().info(String.format("Failed to spawn squid at %d,%d,%d", loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()));
 							continue;
-						}
 						
 						// Spawn the squid
 						craftWorld.spawnEntity(loc, EntityType.SQUID);
-						++numSuccessful;
 					}
-					
-					getLogger().info(String.format("Spawned %d squid near %s", numSuccessful, p.getName()));
 				}
 				
 				// Just reduce maxSquid a bit for next iteration to make sure that the task will finish
