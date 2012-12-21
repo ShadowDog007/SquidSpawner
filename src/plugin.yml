@@ -1,0 +1,6 @@
+main: com.forgenz.squidspawner.P
+name: SquidSpawner
+version: 0.1
+authors: [Michael McKnight (ShadowDog007)]
+description: MobManager made for ForgeNZ to spawn squid on our abnormally high world
+depend: [MobManager]
