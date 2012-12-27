@@ -9,16 +9,19 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.World.Environment;
+import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.configuration.MemoryConfiguration;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import com.forgenz.mobmanager.MMChunk;
-import com.forgenz.mobmanager.MMCoord;
-import com.forgenz.mobmanager.MMLayer;
-import com.forgenz.mobmanager.MMWorld;
-import com.forgenz.mobmanager.Spiral;
+import com.forgenz.mobmanager.MobType;
+import com.forgenz.mobmanager.world.MMChunk;
+import com.forgenz.mobmanager.world.MMCoord;
+import com.forgenz.mobmanager.world.MMLayer;
+import com.forgenz.mobmanager.world.MMWorld;
+import com.forgenz.mobmanager.util.Spiral;
 
 public class P extends JavaPlugin implements Runnable
 {
@@ -48,6 +51,23 @@ public class P extends JavaPlugin implements Runnable
 			return;
 		}
 		
+		try
+		{
+			if (com.forgenz.mobmanager.P.worlds == null)
+			{
+				getLogger().warning("MobManager is not properly initilized");
+				getServer().getPluginManager().disablePlugin(this);
+				return;
+			}
+		}
+		catch (Exception e)
+		{
+			getLogger().severe("SquidSpawner is not compatiable with your current version of MobManager");
+			getServer().getPluginManager().disablePlugin(this);
+			e.printStackTrace();
+			return;
+		}
+		
 		getLogger().info("Hooked into MobManager");
 		
 		taskId = getServer().getScheduler().scheduleSyncRepeatingTask(this, this, getServer().getTicksPerAnimalSpawns(), getServer().getTicksPerAnimalSpawns());
@@ -64,33 +84,31 @@ public class P extends JavaPlugin implements Runnable
 	@Override
 	public void run()
 	{
-		if (p == null || mobManager == null)
+		if (p == null || mobManager == null || com.forgenz.mobmanager.P.worlds == null)
 		{
 			getServer().getScheduler().cancelTask(taskId);
 			return;
 		}
 		
-		long start = System.currentTimeMillis();
-		
 		int chunkRange = com.forgenz.mobmanager.P.cfg.getInt("SpawnChunkDistance");
 		int numAttempts = cfg.getInt("SquidSpawnAttemptsPerPlayer", 5);
 		
-		for (MMWorld mmWorld : mobManager.worlds.values())
+		for (MMWorld mmWorld : com.forgenz.mobmanager.P.worlds.values())
 		{
 			// Ignore Nether & The End
 			if (mmWorld.getWorld().getEnvironment() != Environment.NORMAL)
 				continue;
 			
 			// Makes sure the squid count is accurate
-			mmWorld.updateNumMobs();
+			mmWorld.updateMobCounts();
 			
-			int maxSquid = mmWorld.maxSquid();
-			// Loop while we are under the limit don't let the task run too long
-			while (maxSquid > mmWorld.getNumSquid() && System.currentTimeMillis() - start < 10)
+			int maxSquid = mmWorld.maxMobs(MobType.WATER_ANIMAL);
+			// Loop while we are under the limit
+			while (maxSquid > mmWorld.getMobCount(MobType.WATER_ANIMAL))
 			{
 				// Iterates through each player and spawns some squid around them
 				Iterator<Player> it = mmWorld.getWorld().getPlayers().iterator();
-				while (it.hasNext() && maxSquid > mmWorld.getNumSquid() && System.currentTimeMillis() - start < 10)
+				while (it.hasNext() && maxSquid > mmWorld.getMobCount(MobType.WATER_ANIMAL))
 				{
 					Player p = it.next();
 					
@@ -139,11 +157,26 @@ public class P extends JavaPlugin implements Runnable
 						Location loc = new Location(craftWorld, x, y, z, rand.nextFloat() * 360, rand.nextFloat() * 360);
 						
 						// Check if the spawn location is safe
-						if (loc.getBlock().getType() != Material.WATER && loc.getBlock().getType() != Material.STATIONARY_WATER)
+						if (!isWater(loc.getBlock()))
+							continue;
+						
+						boolean valid = true;
+						// Check if the spawn location has enough water
+						for (BlockFace face : BlockFace.values())
+						{
+							if (!isWater(loc.getBlock().getRelative(face)))
+							{
+								valid = false;
+								break;
+							}
+						}
+						
+						if (!valid)
 							continue;
 						
 						// Spawn the squid
 						craftWorld.spawnEntity(loc, EntityType.SQUID);
+						break;
 					}
 				}
 				
@@ -151,5 +184,10 @@ public class P extends JavaPlugin implements Runnable
 				maxSquid *= 0.8;
 			}
 		}
+	}
+	
+	private boolean isWater(Block block)
+	{
+		return block.getType() == Material.WATER || block.getType() == Material.STATIONARY_WATER;
 	}
 }
